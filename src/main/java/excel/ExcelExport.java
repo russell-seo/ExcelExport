@@ -1,7 +1,7 @@
 package excel;
 
 import excel.annotation.ExcelColumn;
-import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.streaming.SXSSFCell;
 import org.apache.poi.xssf.streaming.SXSSFRow;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
@@ -50,10 +50,15 @@ public class ExcelExport<T> {
      */
     private void createHeaders(SXSSFSheet sheet, int rowStartIndex, int columnStartIndex, Class<T> objectType) {
         SXSSFRow row = sheet.createRow(rowStartIndex);
-
+        CellStyle cellStyle = wb.createCellStyle();
+        Font font = wb.createFont();
         for (Field declaredField : objectType.getDeclaredFields()) {
             SXSSFCell cell = row.createCell(columnStartIndex++);
             ExcelColumn annotation = declaredField.getAnnotation(ExcelColumn.class);
+            font.setBold(true);
+            cellStyle.setAlignment(HorizontalAlignment.CENTER);
+            cellStyle.setFont(font);
+            cell.setCellStyle(cellStyle);
             cell.setCellValue(annotation.HeaderName());
         }
     }
@@ -63,7 +68,6 @@ public class ExcelExport<T> {
      */
     private void createBody(Object obj, int i, int columnStartIndex,  Class<T> objectType) {
         SXSSFRow row = sheet.createRow(i);
-
         for (Field declaredField : objectType.getDeclaredFields()) {
             SXSSFCell cell = row.createCell(columnStartIndex++);
             Field field = getField(obj.getClass(), declaredField.getName());
@@ -90,19 +94,31 @@ public class ExcelExport<T> {
     }
 
     private void addCellValueByType(Object value, SXSSFCell cell, ExportColumn.DataType dataType){
+        CellStyle cellStyle = wb.createCellStyle();
+
         if(ExportColumn.DataType.currency.equals(dataType)){
+            DataFormat format = wb.createDataFormat();
+            cellStyle.setDataFormat(format.getFormat("#,##0"));
+            cellStyle.setAlignment(HorizontalAlignment.RIGHT);
             cell.setCellType(CellType.NUMERIC);
-            cell.setCellValue(NumberFormat.getCurrencyInstance(new Locale("en", "US")).format(value));
+            cell.setCellStyle(cellStyle);
+            cell.setCellValue(Double.parseDouble(value.toString()));
         }else if(ExportColumn.DataType.date.equals(dataType)){
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            cell.setCellValue(sdf.format(value));
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+            cell.setCellValue(format.format(value));
         }else if(ExportColumn.DataType.datetime.equals(dataType)){
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            cell.setCellValue(sdf.format(value));
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            cell.setCellValue(format.format(value));
         }else if(ExportColumn.DataType.percentage.equals(dataType)){
             Double d = Double.valueOf(value.toString()) * 100;
             cell.setCellValue(Math.floor(d * 100)/100 + "%");
+        }else if(ExportColumn.DataType.number.equals(dataType)){
+            cellStyle.setAlignment(HorizontalAlignment.RIGHT);
+            cell.setCellType(CellType.NUMERIC);
+            cell.setCellValue(Double.parseDouble(value.toString()));
         }else{
+            cellStyle.setAlignment(HorizontalAlignment.CENTER);
+            cell.setCellStyle(cellStyle);
             cell.setCellValue(value == null ? "" : value.toString());
         }
 
